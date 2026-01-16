@@ -57,7 +57,7 @@ public class ExcelParserService {
         return jsonDataList;
     }
 
-    public List<Map<String, Object>> parseToJson(MultipartFile file, List<Integer> columnIndexes) {
+    public List<Map<String, Object>> parseToJson(MultipartFile file, List<Integer> columnIndexes, List<String> customKeys) {
         List<Map<String, Object>> jsonDataList = new ArrayList<>();
 
         try (InputStream inputStream = file.getInputStream();
@@ -71,11 +71,30 @@ public class ExcelParserService {
             }
 
             Map<Integer, String> columnHeaderMap = new HashMap<>();
+            
+            // Kiểm tra có dùng customKeys hay không
+            boolean useCustomKeys = customKeys != null && !customKeys.isEmpty();
 
-            for (int cellIndex = 0; cellIndex < columnIndexes.size(); cellIndex++){
-                String originalHeader = headerRow.getCell(columnIndexes.get(cellIndex)).getStringCellValue();
-                String normalizedKey = formatHeaderKey(originalHeader);
-                columnHeaderMap.put(cellIndex, normalizedKey);
+            for (int i = 0; i < columnIndexes.size(); i++) {
+                int excelColumnIndex = columnIndexes.get(i);
+                String jsonKey;
+                
+                if (useCustomKeys) {
+                    // Dùng custom key do client cung cấp
+                    jsonKey = customKeys.get(i);
+                } else {
+                    // Lấy từ header Excel và normalize
+                    Cell headerCell = headerRow.getCell(excelColumnIndex);
+                    if (headerCell == null) {
+                        jsonKey = "UNKNOWN_COL_" + excelColumnIndex;
+                    } else {
+                        String originalHeader = headerCell.getStringCellValue();
+                        jsonKey = formatHeaderKey(originalHeader);
+                    }
+                }
+                
+                // Map Excel column index với JSON key
+                columnHeaderMap.put(excelColumnIndex, jsonKey);
             }
 
             int lastRowIndex = firstSheet.getLastRowNum();

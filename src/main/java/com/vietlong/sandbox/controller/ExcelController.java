@@ -37,14 +37,33 @@ public class ExcelController {
                     description = "Danh sách index các cột cần lấy (bắt đầu từ 0). Nếu để trống sẽ lấy tất cả.",
                     required = false
             )
-            @RequestParam(value = "columnIndexes", required = false) List<Integer> columnIndexes
+            @RequestParam(value = "columnIndexes", required = false) List<Integer> columnIndexes,
+
+            @Parameter(
+                    description = "Danh sách tên key tùy chỉnh cho JSON. Nếu không cung cấp, sẽ tự động lấy từ header Excel.",
+                    required = false
+            )
+            @RequestParam(value = "customKeys", required = false) List<String> customKeys
     ) {
         if (file.isEmpty() || file.getOriginalFilename() == null || !file.getOriginalFilename().endsWith(".xlsx")) {
             return ResponseEntity.badRequest().build();
         }
 
+        // Validate: customKeys chỉ dùng khi có columnIndexes và độ dài phải khớp
+        if (customKeys != null && !customKeys.isEmpty()) {
+            if (columnIndexes == null || columnIndexes.isEmpty()) {
+                throw new IllegalArgumentException("customKeys chỉ được sử dụng khi có columnIndexes");
+            }
+            if (customKeys.size() != columnIndexes.size()) {
+                throw new IllegalArgumentException(
+                    String.format("Độ dài customKeys (%d) phải bằng độ dài columnIndexes (%d)", 
+                        customKeys.size(), columnIndexes.size())
+                );
+            }
+        }
+
         if (columnIndexes != null && !columnIndexes.isEmpty()) {
-            return ResponseEntity.ok(excelParserService.parseToJson(file, columnIndexes));
+            return ResponseEntity.ok(excelParserService.parseToJson(file, columnIndexes, customKeys));
         }
 
         return ResponseEntity.ok(excelParserService.parseToJson(file));
